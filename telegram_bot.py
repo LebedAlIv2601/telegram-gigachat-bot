@@ -24,7 +24,7 @@ bot = Bot(token=TELEGRAM_TOKEN)
 dp = Dispatcher()
 gigachat_client = GigaChatClient(GIGACHAT_AUTH_TOKEN)
 
-user_conversations: Dict[int, Deque] = defaultdict(lambda: deque(maxlen=10))
+user_conversations: Dict[int, Deque] = defaultdict(lambda: deque(maxlen=20))
 
 
 @dp.message(CommandStart())
@@ -41,10 +41,14 @@ async def handle_message(message: Message) -> None:
     
     user_conversations[user_id].append({"role": "user", "content": user_text})
     
-    messages_to_send = list(user_conversations[user_id])[-5:]
+    messages_to_send = list(user_conversations[user_id])[-10:]
     
     try:
+        thinking_message = await message.answer("Думаю...")
+        
         response = await gigachat_client.send_message(messages_to_send)
+        
+        await bot.delete_message(chat_id=message.chat.id, message_id=thinking_message.message_id)
         
         if response:
             user_conversations[user_id].append({"role": "assistant", "content": response})
@@ -56,6 +60,10 @@ async def handle_message(message: Message) -> None:
             
     except Exception as e:
         logger.error(f"Error processing message for user {user_id}: {e}")
+        try:
+            await bot.delete_message(chat_id=message.chat.id, message_id=thinking_message.message_id)
+        except:
+            pass
         await message.answer("Not available now, please, try again later")
 
 

@@ -5,8 +5,9 @@ A Telegram bot that integrates with Sber's GigaChat AI to provide intelligent re
 ## Features
 
 - 🤖 Responds to user messages using GigaChat AI
-- 💬 Maintains conversation context (last 5 messages per user)
+- 💬 Maintains conversation context (last 10 messages per user)
 - 🔄 Automatic OAuth token refresh
+- 🤔 Shows "Думаю..." message while processing queries
 - 🛡️ Error handling and graceful degradation
 - 🚀 24/7 operation scripts for Mac
 - 📝 Comprehensive logging
@@ -86,7 +87,7 @@ tail -f bot.log
 ## Configuration
 
 - **System prompt**: Configurable in `gigachat_client.py` (line 17)
-- **Message history**: Keeps last 5 messages per user for context
+- **Message history**: Keeps last 10 messages per user for context
 - **Token refresh**: Automatic OAuth token refresh every ~29 minutes
 
 ## Files Structure
