@@ -16,7 +16,8 @@ class GigaChatClient:
         self.token_expires_at: Optional[datetime] = None
         self.oauth_url = "https://ngw.devices.sberbank.ru:9443/api/v2/oauth"
         self.chat_url = "https://gigachat.devices.sberbank.ru/api/v1/chat/completions"
-        self.system_prompt = "You are all-known magic guy. Use all your magic to help user find an answer for his questions. Answer in one paragraph"
+        self.text_system_prompt = "You are all-known magic guy. Use all your magic to help user find an answer for his questions. Answer in one paragraph"
+        self.json_system_prompt = "You are all-known magic guy. Use all your magic to help user find an answer for his questions. You MUST respond ONLY with valid JSON containing exactly these three fields: 'answer' (your response text), 'recommendations' (suggest where the user can verify or check your answer - websites, books, experts, etc.), 'author' (imagine a random author name). Format the JSON with proper line breaks and indentation for readability. Use minimal escaping - only escape quotes and backslashes when necessary, avoid unnecessary escaping of special characters. Do not add any text before or after the JSON."
         
     async def _get_access_token(self) -> str:
         headers = {
@@ -51,11 +52,12 @@ class GigaChatClient:
             await self._get_access_token()
         return self.access_token
     
-    async def send_message(self, messages: List[Dict[str, str]]) -> Optional[str]:
+    async def send_message(self, messages: List[Dict[str, str]], output_format: str = "text") -> Optional[str]:
         try:
             await self._ensure_valid_token()
             
-            chat_messages = [{"role": "system", "content": self.system_prompt}]
+            system_prompt = self.json_system_prompt if output_format == "json" else self.text_system_prompt
+            chat_messages = [{"role": "system", "content": system_prompt}]
             chat_messages.extend(messages)
             
             headers = {

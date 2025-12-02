@@ -11,6 +11,10 @@ A Telegram bot that integrates with Sber's GigaChat AI to provide intelligent re
 - 🛡️ Error handling and graceful degradation
 - 🚀 24/7 operation scripts for Mac
 - 📝 Comprehensive logging
+- 📋 **Dual Output Modes**: Switch between Text and JSON response formats
+- ⌨️ **Persistent Bottom Menu**: Always-visible mode switching buttons
+- 🎯 **Structured JSON**: Includes answer, recommendations, and author fields
+- 👤 **Per-User Preferences**: Each user's output format preference remembered
 
 ## Prerequisites
 
@@ -86,9 +90,32 @@ tail -f bot.log
 
 ## Configuration
 
-- **System prompt**: Configurable in `gigachat_client.py` (line 17)
+- **System prompts**: Separate prompts for text and JSON modes in `gigachat_client.py`
 - **Message history**: Keeps last 10 messages per user for context
 - **Token refresh**: Automatic OAuth token refresh every ~29 minutes
+- **Output modes**: Users can switch between Text and JSON formats using bottom menu buttons
+
+## Output Modes
+
+### Text Mode (Default)
+- Standard paragraph responses from GigaChat
+- Natural conversation format
+
+### JSON Mode
+- Structured JSON responses with three fields:
+  - `answer`: The AI's response text
+  - `recommendations`: Sources to verify the answer (websites, books, experts)
+  - `author`: Random imagined author name
+- Formatted with proper line breaks for readability
+- Displayed in Telegram with syntax highlighting
+
+## Usage
+
+1. **Start chatting**: Send any message to get a response
+2. **Switch modes**: Use the bottom menu buttons:
+   - 📝 Text Mode: Standard text responses
+   - 🔧 JSON Mode: Structured JSON with recommendations
+3. **Your preference is remembered** for future conversations
 
 ## Files Structure
 
