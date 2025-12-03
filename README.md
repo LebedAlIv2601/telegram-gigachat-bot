@@ -5,15 +5,16 @@ A Telegram bot that integrates with Sber's GigaChat AI to provide intelligent re
 ## Features
 
 - 🤖 Responds to user messages using GigaChat AI
-- 💬 Maintains conversation context (last 10 messages per user)
+- 💬 Maintains conversation context (last 10 messages for text/json, 50 for recipes)
 - 🔄 Automatic OAuth token refresh
 - 🤔 Shows "Думаю..." message while processing queries
 - 🛡️ Error handling and graceful degradation
 - 🚀 24/7 operation scripts for Mac
 - 📝 Comprehensive logging
-- 📋 **Dual Output Modes**: Switch between Text and JSON response formats
+- 📋 **Triple Output Modes**: Switch between Text, JSON, and Recipe Master formats
 - ⌨️ **Persistent Bottom Menu**: Always-visible mode switching buttons
 - 🎯 **Structured JSON**: Includes answer, recommendations, and author fields
+- 👨‍🍳 **Recipe Master**: Expert cooking assistant creating step-by-step recipes in Russian
 - 👤 **Per-User Preferences**: Each user's output format preference remembered
 
 ## Prerequisites
@@ -90,10 +91,10 @@ tail -f bot.log
 
 ## Configuration
 
-- **System prompts**: Separate prompts for text and JSON modes in `gigachat_client.py`
-- **Message history**: Keeps last 10 messages per user for context
+- **System prompts**: Separate prompts for text, JSON, and recipe modes in `gigachat_client.py`
+- **Message history**: Keeps last 10 messages for text/json, 50 for recipes per user
 - **Token refresh**: Automatic OAuth token refresh every ~29 minutes
-- **Output modes**: Users can switch between Text and JSON formats using bottom menu buttons
+- **Output modes**: Users can switch between Text, JSON, and Recipe Master formats using bottom menu buttons
 
 ## Output Modes
 
@@ -109,13 +110,27 @@ tail -f bot.log
 - Formatted with proper line breaks for readability
 - Displayed in Telegram with syntax highlighting
 
+### Recipe Master Mode
+- Russian cooking expert that creates detailed step-by-step recipes
+- Greeting: "Привет! Я мастер-шеф. Что будем готовить сегодня?"
+- Collects specific information before creating recipes:
+  - **Available ingredients**: Selects suitable ones from your list (doesn't use all)
+  - **Kitchen equipment**: Gets concrete list or confirms "no equipment"
+  - **Recipe complexity**: Clear level (простой/средний/сложный)
+  - **Maximum cooking time**: Specific time with units (e.g., "30 минут", "1 час")
+- Only responds to cooking-related queries
+- Recipe format: "Итоговый рецепт: [DISH NAME]" followed by numbered steps
+- Clears conversation context after each completed recipe
+
 ## Usage
 
 1. **Start chatting**: Send any message to get a response
 2. **Switch modes**: Use the bottom menu buttons:
    - 📝 Text Mode: Standard text responses
    - 🔧 JSON Mode: Structured JSON with recommendations
+   - 👨‍🍳 Recipe Master: Step-by-step cooking recipes in Russian
 3. **Your preference is remembered** for future conversations
+4. **Recipe creation**: In Recipe Master mode, answer the chef's questions about ingredients, equipment, complexity, and time to get your custom recipe
 
 ## Files Structure
 

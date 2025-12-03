@@ -26,13 +26,16 @@ gigachat_client = GigaChatClient(GIGACHAT_AUTH_TOKEN)
 
 user_conversations: Dict[int, Deque] = defaultdict(lambda: deque(maxlen=20))
 user_output_preferences: Dict[int, str] = defaultdict(lambda: "text")
+user_recipe_conversations: Dict[int, Deque] = defaultdict(lambda: deque(maxlen=50))
+user_recipe_info: Dict[int, Dict] = defaultdict(dict)
 
 
 def get_reply_keyboard() -> ReplyKeyboardMarkup:
     text_btn = KeyboardButton(text="📝 Text Mode")
     json_btn = KeyboardButton(text="🔧 JSON Mode")
+    recipe_btn = KeyboardButton(text="👨‍🍳 Recipe Master")
     return ReplyKeyboardMarkup(
-        keyboard=[[text_btn, json_btn]],
+        keyboard=[[text_btn, json_btn], [recipe_btn]],
         resize_keyboard=True,
         persistent=True
     )
@@ -52,40 +55,73 @@ async def handle_message(message: Message) -> None:
     user_text = message.text
     
     # Handle mode switching via keyboard buttons
-    if user_text in ["📝 Text Mode", "🔧 JSON Mode"]:
-        new_mode = "text" if user_text == "📝 Text Mode" else "json"
+    if user_text in ["📝 Text Mode", "🔧 JSON Mode", "👨‍🍳 Recipe Master"]:
+        if user_text == "📝 Text Mode":
+            new_mode = "text"
+            mode_name = "Text"
+            await message.answer(f"Switched to {mode_name} mode", reply_markup=get_reply_keyboard())
+        elif user_text == "🔧 JSON Mode":
+            new_mode = "json"
+            mode_name = "JSON"
+            await message.answer(f"Switched to {mode_name} mode", reply_markup=get_reply_keyboard())
+        else:  # Recipe Master
+            new_mode = "recipe"
+            # Clear any previous recipe conversation
+            user_recipe_conversations[user_id].clear()
+            user_recipe_info[user_id].clear()
+            await message.answer("Привет! Я мастер-шеф. Что будем готовить сегодня?", reply_markup=get_reply_keyboard())
+            
         user_output_preferences[user_id] = new_mode
-        mode_name = "Text" if new_mode == "text" else "JSON"
-        await message.answer(f"Switched to {mode_name} mode", reply_markup=get_reply_keyboard())
         logger.info(f"User {user_id} switched to {new_mode} mode")
         return
     
     logger.info(f"Received message from user {user_id}: {user_text}")
     
-    user_conversations[user_id].append({"role": "user", "content": user_text})
+    output_format = user_output_preferences[user_id]
     
-    messages_to_send = list(user_conversations[user_id])[-10:]
+    if output_format == "recipe":
+        # Handle recipe mode
+        user_recipe_conversations[user_id].append({"role": "user", "content": user_text})
+        messages_to_send = list(user_recipe_conversations[user_id])
+    else:
+        # Handle text/json modes (preserve existing functionality)
+        user_conversations[user_id].append({"role": "user", "content": user_text})
+        messages_to_send = list(user_conversations[user_id])[-10:]
     
     try:
         thinking_message = await message.answer("Думаю...")
         
-        output_format = user_output_preferences[user_id]
         response = await gigachat_client.send_message(messages_to_send, output_format)
         
         await bot.delete_message(chat_id=message.chat.id, message_id=thinking_message.message_id)
         
         if response:
-            user_conversations[user_id].append({"role": "assistant", "content": response})
-            
-            if output_format == "json":
-                formatted_response = f"```json\n{response}\n```"
-                await message.answer(formatted_response, parse_mode="Markdown")
+            if output_format == "recipe":
+                user_recipe_conversations[user_id].append({"role": "assistant", "content": response})
+                
+                # Check if this is a final recipe (contains "Итоговый рецепт:")
+                if "Итоговый рецепт:" in response:
+                    await message.answer(response, reply_markup=get_reply_keyboard())
+                    # Clear recipe context after final recipe
+                    user_recipe_conversations[user_id].clear()
+                    user_recipe_info[user_id].clear()
+                    logger.info(f"Sent final recipe to user {user_id} and cleared context")
+                else:
+                    await message.answer(response, reply_markup=get_reply_keyboard())
+                    logger.info(f"Sent recipe question/response to user {user_id}")
             else:
-                await message.answer(response)
-            
-            logger.info(f"Sent {output_format} response to user {user_id}")
+                # Preserve existing text/json functionality
+                user_conversations[user_id].append({"role": "assistant", "content": response})
+                
+                if output_format == "json":
+                    formatted_response = f"```json\n{response}\n```"
+                    await message.answer(formatted_response, parse_mode="Markdown", reply_markup=get_reply_keyboard())
+                else:
+                    await message.answer(response, reply_markup=get_reply_keyboard())
+                
+                logger.info(f"Sent {output_format} response to user {user_id}")
         else:
-            await message.answer("Not available now, please, try again later")
+            await message.answer("Not available now, please, try again later", reply_markup=get_reply_keyboard())
             logger.warning(f"No response from GigaChat for user {user_id}")
             
     except Exception as e:
@@ -94,7 +130,7 @@ async def handle_message(message: Message) -> None:
             await bot.delete_message(chat_id=message.chat.id, message_id=thinking_message.message_id)
         except:
             pass
-        await message.answer("Not available now, please, try again later")
+        await message.answer("Not available now, please, try again later", reply_markup=get_reply_keyboard())
 
 
 
