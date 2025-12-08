@@ -15,6 +15,9 @@ This is a Telegram bot that integrates with Sber's GigaChat AI service to provid
 - **JSON Structure**: Contains `answer`, `recommendations`, `author` fields
 - **Per-user Preferences**: Output format stored in memory per user
 - **Formatted JSON**: Multi-line with proper indentation and minimal escaping
+- **Temperature Control**: Per-user GigaChat temperature setting (0-2.0) via `/temperature` command
+- **Conversation Management**: `/clear` command to reset conversation history
+- **System Message Filtering**: SYSTEM messages excluded from GigaChat context
 
 ## Development Context
 - Python project using aiogram for Telegram integration
@@ -49,7 +52,12 @@ This is a Telegram bot that integrates with Sber's GigaChat AI service to provid
 - Clears context after each recipe completion
 - Only responds to cooking-related queries
 
-## Common Commands
+## Bot Commands
+- `/start` - Initialize bot and show welcome message
+- `/temperature VALUE` - Set GigaChat temperature (0-2.0, default: 0)
+- `/clear` - Clear conversation history for current user
+
+## Management Commands
 ```bash
 # Start bot
 ./start_bot.sh
@@ -79,9 +87,12 @@ python telegram_bot.py
 ## Notes
 - Bot shows "Думаю..." while processing
 - Automatic token refresh every ~29 minutes
-- Error handling returns "Not available now" message
+- Error handling returns "SYSTEM: Not available now" message
 - SSL disabled for GigaChat API calls
 - User preferences reset on bot restart (in-memory storage)
-- Default mode is "text" for new users
+- Default mode is "text" for new users, default temperature is 0
 - Network call logging with request/response bodies
 - Recipe mode maintains separate conversation history
+- All bot system messages prefixed with "SYSTEM:" and filtered from GigaChat context
+- Temperature and system messages excluded from conversation history
+- Per-user temperature settings persist until bot restart

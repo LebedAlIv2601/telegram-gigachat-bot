@@ -16,6 +16,9 @@ A Telegram bot that integrates with Sber's GigaChat AI to provide intelligent re
 - 🎯 **Structured JSON**: Includes answer, recommendations, and author fields
 - 👨‍🍳 **Recipe Master**: Expert cooking assistant creating step-by-step recipes in Russian
 - 👤 **Per-User Preferences**: Each user's output format preference remembered
+- 🌡️ **Temperature Control**: Adjustable GigaChat creativity via `/temperature` command (0-2.0)
+- 🧹 **Conversation Management**: `/clear` command to reset chat history
+- 🔧 **System Message Filtering**: Clean conversation context for AI processing
 
 ## Prerequisites
 
@@ -124,12 +127,20 @@ tail -f bot.log
 
 ## Usage
 
+### Basic Commands
+- `/start` - Initialize the bot and show welcome message
+- `/temperature VALUE` - Set GigaChat creativity (0-2.0, default: 0)
+  - 0 = More focused and deterministic
+  - 2.0 = More creative and varied responses
+- `/clear` - Clear conversation history
+
+### Chat Modes
 1. **Start chatting**: Send any message to get a response
 2. **Switch modes**: Use the bottom menu buttons:
    - 📝 Text Mode: Standard text responses
    - 🔧 JSON Mode: Structured JSON with recommendations
    - 👨‍🍳 Recipe Master: Step-by-step cooking recipes in Russian
-3. **Your preference is remembered** for future conversations
+3. **Your preferences are remembered** for future conversations (until bot restart)
 4. **Recipe creation**: In Recipe Master mode, answer the chef's questions about ingredients, equipment, complexity, and time to get your custom recipe
 
 ## Files Structure
@@ -151,9 +162,10 @@ telegram-gigachat-bot/
 
 ## Error Handling
 
-- Returns "Not available now, please, try again later" when GigaChat is unavailable
+- Returns "SYSTEM: Not available now, please, try again later" when GigaChat is unavailable
 - Automatically retries requests after token refresh on 401 errors
 - Comprehensive logging for debugging
+- System messages are prefixed with "SYSTEM:" and filtered from AI context
 
 ## Contributing
 

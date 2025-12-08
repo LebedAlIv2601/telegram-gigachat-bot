@@ -53,7 +53,7 @@ class GigaChatClient:
             await self._get_access_token()
         return self.access_token
     
-    async def send_message(self, messages: List[Dict[str, str]], output_format: str = "text") -> Optional[str]:
+    async def send_message(self, messages: List[Dict[str, str]], output_format: str = "text", temperature: float = 0) -> Optional[str]:
         try:
             await self._ensure_valid_token()
             
@@ -74,13 +74,9 @@ class GigaChatClient:
                 'Authorization': f'Bearer {self.access_token}'
             }
             
-            payload = {
-                "model": "GigaChat",
-                "stream": False,
-                "update_interval": 0,
-                "messages": chat_messages
-            }
-            
+            payload = {"model": "GigaChat", "stream": False, "update_interval": 0, "messages": chat_messages,
+                       "temperature": temperature}
+
             logger.info(f"Sending request to GigaChat: {json.dumps(payload, ensure_ascii=False, indent=2)}")
             
             async with aiohttp.ClientSession() as session:
