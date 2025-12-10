@@ -1,37 +1,45 @@
-# Telegram Bot with GigaChat Integration
+# Telegram Bot with OpenRouter AI Integration
 
-A Telegram bot that integrates with Sber's GigaChat AI to provide intelligent responses to user messages.
+A powerful Telegram bot that integrates with OpenRouter API to provide intelligent responses using multiple AI models including DeepSeek R1T2, Nova 2 Lite, and Google Gemma.
 
 ## Features
 
-- 🤖 Responds to user messages using GigaChat AI
-- 💬 Maintains conversation context (last 10 messages for text/json, 50 for recipes)
-- 🔄 Automatic OAuth token refresh
+- 🤖 **Multi-Model AI**: Choose between DeepSeek R1T2, Nova 2 Lite, and Google Gemma models
+- 🔄 **Model Switching**: Easy model selection via inline buttons with conversation history clearing
+- 💬 **Conversation Context**: Maintains chat history (10 messages for text/json, 50 for recipes)
+- 📊 **Token Usage Tracking**: Displays prompt, response, and total token counts for each interaction
 - 🤔 Shows "Думаю..." message while processing queries
-- 🛡️ Error handling and graceful degradation
-- 🚀 24/7 operation scripts for Mac
-- 📝 Comprehensive logging
+- 🛡️ **Error Handling**: Graceful degradation and comprehensive logging
+- 🚀 **24/7 Operation**: Scripts for Mac background operation
 - 📋 **Triple Output Modes**: Switch between Text, JSON, and Recipe Master formats
-- ⌨️ **Persistent Bottom Menu**: Always-visible mode switching buttons
+- ⌨️ **Persistent Bottom Menu**: Always-visible mode and model switching buttons
 - 🎯 **Structured JSON**: Includes answer, recommendations, and author fields
 - 👨‍🍳 **Recipe Master**: Expert cooking assistant creating step-by-step recipes in Russian
-- 👤 **Per-User Preferences**: Each user's output format preference remembered
-- 🌡️ **Temperature Control**: Adjustable GigaChat creativity via `/temperature` command (0-2.0)
+- 👤 **Per-User Preferences**: Each user's settings remembered (model, temperature, tokens, mode)
+- 🌡️ **Temperature Control**: Adjustable AI creativity via `/temperature` command (0-2.0)
+- 🎛️ **Token Limit Control**: Set maximum response tokens via `/maxTokens` command (100-4000)
+- 🎭 **System Prompt Toggle**: Enable/disable system prompts via `/systemPrompt on|off`
 - 🧹 **Conversation Management**: `/clear` command to reset chat history
 - 🔧 **System Message Filtering**: Clean conversation context for AI processing
+
+## Available AI Models
+
+- **DeepSeek R1T2** (tngtech/deepseek-r1t2-chimera:free) - Default model, reasoning-focused
+- **Nova 2 Lite** (amazon/nova-2-lite-v1:free) - Amazon's efficient language model
+- **Google Gemma** (google/gemma-3n-e4b-it:free) - Google's instruction-tuned model
 
 ## Prerequisites
 
 - Python 3.9+
 - Telegram Bot Token (from [@BotFather](https://t.me/botfather))
-- GigaChat Authorization Token (from Sber)
+- OpenRouter API Key (from [OpenRouter](https://openrouter.ai/))
 
 ## Quick Setup
 
 1. **Clone the repository:**
 ```bash
-git clone https://github.com/yourusername/telegram-gigachat-bot.git
-cd telegram-gigachat-bot
+git clone https://github.com/yourusername/telegram-openrouter-bot.git
+cd telegram-openrouter-bot
 ```
 
 2. **Install dependencies:**
@@ -46,7 +54,7 @@ cp .env.example .env
 Edit `.env` and add your tokens:
 ```
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token
-GIGACHAT_AUTH_TOKEN=your_gigachat_auth_token
+OPENROUTER_API_KEY=your_openrouter_api_key
 ```
 
 4. **Run the bot:**
@@ -88,22 +96,26 @@ tail -f bot.log
 3. Follow instructions to create your bot
 4. Copy the token provided
 
-### GigaChat Authorization Token:
-1. Register at [GigaChat API](https://developers.sber.ru/portal/products/gigachat-api)
-2. Get your authorization token for API access
+### OpenRouter API Key:
+1. Visit [OpenRouter](https://openrouter.ai/)
+2. Sign up for an account
+3. Generate an API key in your dashboard
+4. Copy the API key (starts with `sk-or-v1-`)
 
 ## Configuration
 
-- **System prompts**: Separate prompts for text, JSON, and recipe modes in `gigachat_client.py`
+- **System prompts**: Separate prompts for text, JSON, and recipe modes in `openrouter_client.py`
 - **Message history**: Keeps last 10 messages for text/json, 50 for recipes per user
-- **Token refresh**: Automatic OAuth token refresh every ~29 minutes
 - **Output modes**: Users can switch between Text, JSON, and Recipe Master formats using bottom menu buttons
+- **Model selection**: Switch between three AI models with automatic conversation clearing
+- **Token usage**: All responses show detailed token consumption information
 
 ## Output Modes
 
 ### Text Mode (Default)
-- Standard paragraph responses from GigaChat
+- Standard paragraph responses from selected AI model
 - Natural conversation format
+- Configurable system prompt for consistent behavior
 
 ### JSON Mode
 - Structured JSON responses with three fields:
@@ -129,9 +141,13 @@ tail -f bot.log
 
 ### Basic Commands
 - `/start` - Initialize the bot and show welcome message
-- `/temperature VALUE` - Set GigaChat creativity (0-2.0, default: 0)
+- `/temperature VALUE` - Set AI creativity (0-2.0, default: 0)
   - 0 = More focused and deterministic
   - 2.0 = More creative and varied responses
+- `/maxTokens VALUE` - Set maximum response tokens (100-4000, default: 4000)
+  - Controls response length and API costs
+- `/systemPrompt on|off` - Enable/disable system prompts (default: on)
+  - Disable for raw model responses without context
 - `/clear` - Clear conversation history
 
 ### Chat Modes
@@ -140,15 +156,18 @@ tail -f bot.log
    - 📝 Text Mode: Standard text responses
    - 🔧 JSON Mode: Structured JSON with recommendations
    - 👨‍🍳 Recipe Master: Step-by-step cooking recipes in Russian
+   - 🔄 Change Model: Select between DeepSeek R1T2, Nova 2 Lite, or Google Gemma
 3. **Your preferences are remembered** for future conversations (until bot restart)
-4. **Recipe creation**: In Recipe Master mode, answer the chef's questions about ingredients, equipment, complexity, and time to get your custom recipe
+4. **Model selection**: Choose your preferred AI model for different tasks
+5. **Token tracking**: Monitor usage with detailed token counts in each response
+6. **Recipe creation**: In Recipe Master mode, answer the chef's questions about ingredients, equipment, complexity, and time to get your custom recipe
 
 ## Files Structure
 
 ```
-telegram-gigachat-bot/
-├── telegram_bot.py          # Main bot implementation
-├── gigachat_client.py       # GigaChat API client
+telegram-openrouter-bot/
+├── telegram_bot.py          # Main bot implementation with multi-model support
+├── openrouter_client.py     # OpenRouter API client with token tracking
 ├── requirements.txt         # Dependencies
 ├── .env.example            # Environment template
 ├── .gitignore              # Git ignore rules
@@ -157,15 +176,23 @@ telegram-gigachat-bot/
 ├── stop_bot.sh             # Stop bot
 ├── check_bot.sh            # Check bot status
 ├── restore_sleep.sh        # Restore sleep settings
+├── CLAUDE.md               # Project memory and development notes
 └── README.md               # This file
 ```
 
 ## Error Handling
 
-- Returns "SYSTEM: Not available now, please, try again later" when GigaChat is unavailable
-- Automatically retries requests after token refresh on 401 errors
-- Comprehensive logging for debugging
+- Returns "SYSTEM: Not available now, please, try again later" when OpenRouter is unavailable
+- Comprehensive logging for debugging with request/response tracking
 - System messages are prefixed with "SYSTEM:" and filtered from AI context
+- Automatic conversation clearing when switching models to prevent context confusion
+
+## Token Usage and Costs
+
+- All responses display token usage: `(Prompt: X, Response: Y, Total: Z tokens)`
+- Control response length with `/maxTokens` to manage costs
+- Free tier models available through OpenRouter
+- Monitor usage through detailed logging
 
 ## Contributing
 
