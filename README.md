@@ -6,7 +6,8 @@ A powerful Telegram bot that integrates with OpenRouter API to provide intellige
 
 - 🤖 **Multi-Model AI**: Choose between DeepSeek R1T2, Nova 2 Lite, and Google Gemma models
 - 🔄 **Model Switching**: Easy model selection via inline buttons with conversation history clearing
-- 💬 **Conversation Context**: Maintains chat history (10 messages for text/json, 50 for recipes)
+- 💬 **Conversation Context**: Unlimited conversation history with automatic summarization after 10 messages
+- 🧠 **Smart Summarization**: Automatic context compression for efficient long conversations
 - 📊 **Token Usage Tracking**: Displays prompt, response, and total token counts for each interaction
 - 🤔 Shows "Думаю..." message while processing queries
 - 🛡️ **Error Handling**: Graceful degradation and comprehensive logging
@@ -15,11 +16,11 @@ A powerful Telegram bot that integrates with OpenRouter API to provide intellige
 - ⌨️ **Persistent Bottom Menu**: Always-visible mode and model switching buttons
 - 🎯 **Structured JSON**: Includes answer, recommendations, and author fields
 - 👨‍🍳 **Recipe Master**: Expert cooking assistant creating step-by-step recipes in Russian
-- 👤 **Per-User Preferences**: Each user's settings remembered (model, temperature, tokens, mode)
+- 👤 **Per-User Preferences**: Each user's settings remembered (model, temperature, tokens, mode, summaries)
 - 🌡️ **Temperature Control**: Adjustable AI creativity via `/temperature` command (0-2.0)
 - 🎛️ **Token Limit Control**: Set maximum response tokens via `/maxTokens` command (100-4000)
 - 🎭 **System Prompt Toggle**: Enable/disable system prompts via `/systemPrompt on|off`
-- 🧹 **Conversation Management**: `/clear` command to reset chat history
+- 🧹 **Conversation Management**: `/clear` command to reset chat history and summary
 - 🔧 **System Message Filtering**: Clean conversation context for AI processing
 
 ## Available AI Models
@@ -105,7 +106,8 @@ tail -f bot.log
 ## Configuration
 
 - **System prompts**: Separate prompts for text, JSON, and recipe modes in `openrouter_client.py`
-- **Message history**: Keeps last 10 messages for text/json, 50 for recipes per user
+- **Message history**: Unlimited with automatic summarization after 10 user messages
+- **Conversation summarization**: Transparent context compression for efficient long conversations
 - **Output modes**: Users can switch between Text, JSON, and Recipe Master formats using bottom menu buttons
 - **Model selection**: Switch between three AI models with automatic conversation clearing
 - **Token usage**: All responses show detailed token consumption information
@@ -148,7 +150,7 @@ tail -f bot.log
   - Controls response length and API costs
 - `/systemPrompt on|off` - Enable/disable system prompts (default: on)
   - Disable for raw model responses without context
-- `/clear` - Clear conversation history
+- `/clear` - Clear conversation history and summary
 
 ### Chat Modes
 1. **Start chatting**: Send any message to get a response
@@ -193,6 +195,19 @@ telegram-openrouter-bot/
 - Control response length with `/maxTokens` to manage costs
 - Free tier models available through OpenRouter
 - Monitor usage through detailed logging
+- Automatic summarization after 10 messages optimizes context usage and reduces token costs
+
+## Conversation Summarization
+
+The bot automatically optimizes long conversations for better performance and lower token usage:
+
+- **Automatic Trigger**: When you send your 10th message, the bot automatically summarizes the conversation
+- **Transparent Process**: No interruption to your chat - the summarization happens seamlessly
+- **Smart Context**: Your next response uses the summary (embedded in system prompt) plus your current message
+- **Continuous Learning**: After another 10 messages, the bot creates a new comprehensive summary
+- **Model Compatible**: Works with all AI models including Amazon Nova (summary embedded in system prompt, not as assistant prefill)
+- **Summary Format**: Concise one-paragraph summary (max 5 sentences) in English
+- **Clear Command**: Use `/clear` to reset both conversation history and summary
 
 ## Contributing
 

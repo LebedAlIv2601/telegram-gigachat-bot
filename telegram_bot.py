@@ -24,19 +24,80 @@ bot = Bot(token=TELEGRAM_TOKEN)
 dp = Dispatcher()
 openrouter_client = OpenRouterClient(OPENROUTER_API_KEY)
 
-user_conversations: Dict[int, Deque] = defaultdict(lambda: deque(maxlen=20))
+user_conversations: Dict[int, Deque] = defaultdict(lambda: deque())
 user_output_preferences: Dict[int, str] = defaultdict(lambda: "text")
-user_recipe_conversations: Dict[int, Deque] = defaultdict(lambda: deque(maxlen=50))
+user_recipe_conversations: Dict[int, Deque] = defaultdict(lambda: deque())
 user_recipe_info: Dict[int, Dict] = defaultdict(dict)
 user_temperature_preferences: Dict[int, float] = defaultdict(lambda: 0.0)
 user_model_preferences: Dict[int, str] = defaultdict(lambda: "deepseek")
 user_max_tokens_preferences: Dict[int, int] = defaultdict(lambda: 4000)
 user_system_prompt_preferences: Dict[int, bool] = defaultdict(lambda: True)
+user_summaries: Dict[int, str] = {}
 
 
 def filter_conversation_messages(messages: List[Dict[str, str]]) -> List[Dict[str, str]]:
     """Filter out SYSTEM messages from conversation history"""
     return [msg for msg in messages if not (msg.get("role") == "assistant" and msg.get("content", "").startswith("SYSTEM:"))]
+
+
+def count_user_messages(user_id: int, output_format: str) -> int:
+    """Count only user role messages, exclude assistant and system"""
+    if output_format == "recipe":
+        conversations = user_recipe_conversations[user_id]
+    else:
+        conversations = user_conversations[user_id]
+
+    return sum(1 for msg in conversations if msg.get("role") == "user")
+
+
+async def create_summary(user_id: int, model_name: str, output_format: str) -> str:
+    """Create conversation summary using selected model"""
+    # Get conversation history
+    if output_format == "recipe":
+        conversation_history = list(user_recipe_conversations[user_id])
+    else:
+        conversation_history = list(user_conversations[user_id])
+
+    # Build summarization prompt
+    # If there's an existing summary, include it in the system prompt for re-summarization
+    if user_id in user_summaries and user_summaries[user_id]:
+        system_content = f"Summarize the following conversation in one paragraph (maximum 5 sentences) in English. Capture the key topics, questions, and important context.\n\nPrevious summary: {user_summaries[user_id]}\n\nNow create a new comprehensive summary that incorporates both the previous summary and the new conversation below."
+    else:
+        system_content = "Summarize the following conversation in one paragraph (maximum 5 sentences) in English. Capture the key topics, questions, and important context."
+
+    summarization_system_prompt = {
+        "role": "system",
+        "content": system_content
+    }
+
+    # Prepare messages for summarization
+    messages_for_summary = [summarization_system_prompt]
+    messages_for_summary.extend(conversation_history)
+
+    try:
+        # Call OpenRouter API with user's selected model for summarization
+        # Use temperature 0 for consistent summaries, max_tokens 4000
+        # Disable system_prompt_enabled since we manually add summarization system prompt above
+        api_response = await openrouter_client.send_message(
+            messages_for_summary,
+            "text",  # Always use text format for summaries
+            model_name,
+            temperature=0.0,
+            max_tokens=4000,
+            system_prompt_enabled=False  # Disabled - we manually added custom summarization prompt
+        )
+
+        if api_response and api_response.get('content'):
+            summary = api_response['content']
+            user_summaries[user_id] = summary
+            logger.info(f"Created summary for user {user_id}: {summary[:100]}...")
+            return summary
+        else:
+            logger.warning(f"Failed to create summary for user {user_id}")
+            return ""
+    except Exception as e:
+        logger.error(f"Error creating summary for user {user_id}: {e}")
+        return ""
 
 
 def get_reply_keyboard() -> ReplyKeyboardMarkup:
@@ -139,8 +200,9 @@ async def clear_command_handler(message: Message) -> None:
     user_conversations[user_id].clear()
     user_recipe_conversations[user_id].clear()
     user_recipe_info[user_id].clear()
+    user_summaries.pop(user_id, None)
     await message.answer("SYSTEM: Conversation history cleared", reply_markup=get_reply_keyboard())
-    logger.info(f"User {user_id} cleared conversation history")
+    logger.info(f"User {user_id} cleared conversation history and summary")
 
 
 def get_model_keyboard() -> InlineKeyboardMarkup:
@@ -154,25 +216,26 @@ def get_model_keyboard() -> InlineKeyboardMarkup:
 async def handle_model_selection(callback_query: CallbackQuery) -> None:
     user_id = callback_query.from_user.id
     model_key = callback_query.data.split("_")[1]
-    
+
     # Update user model preference
     user_model_preferences[user_id] = model_key
-    
-    # Clear conversation history when model changes
+
+    # Clear conversation history and summary when model changes
     user_conversations[user_id].clear()
     user_recipe_conversations[user_id].clear()
     user_recipe_info[user_id].clear()
-    
+    user_summaries.pop(user_id, None)
+
     # Get model display name
     model_display_name = openrouter_client.get_model_display_name(model_key)
-    
+
     await callback_query.answer()
     await callback_query.message.edit_text(
         f"Model selected: {model_display_name}",
         reply_markup=None
     )
-    
-    logger.info(f"User {user_id} changed model to {model_key} and conversation history cleared")
+
+    logger.info(f"User {user_id} changed model to {model_key}, cleared conversation history and summary")
 
 
 @dp.message()
@@ -221,21 +284,46 @@ async def handle_message(message: Message) -> None:
     if output_format == "recipe":
         # Handle recipe mode
         user_recipe_conversations[user_id].append({"role": "user", "content": user_text})
+
+        # Check if summarization needed BEFORE sending to API
+        user_msg_count = count_user_messages(user_id, output_format)
+        if user_msg_count >= 10:
+            logger.info(f"Pre-summarization triggered for user {user_id} in recipe mode (count: {user_msg_count})")
+            await create_summary(user_id, user_model_preferences[user_id], output_format)
+            # Clear old conversation but keep current message
+            current_message = user_recipe_conversations[user_id][-1]
+            user_recipe_conversations[user_id].clear()
+            user_recipe_info[user_id].clear()
+            user_recipe_conversations[user_id].append(current_message)
+            logger.info(f"Cleared recipe history, kept current message for user {user_id}")
+
         messages_to_send = filter_conversation_messages(list(user_recipe_conversations[user_id]))
     else:
-        # Handle text/json modes (preserve existing functionality)
+        # Handle text/json modes
         user_conversations[user_id].append({"role": "user", "content": user_text})
-        filtered_messages = filter_conversation_messages(list(user_conversations[user_id]))
-        messages_to_send = filtered_messages[-10:]
-    
+
+        # Check if summarization needed BEFORE sending to API
+        user_msg_count = count_user_messages(user_id, output_format)
+        if user_msg_count >= 10:
+            logger.info(f"Pre-summarization triggered for user {user_id} in {output_format} mode (count: {user_msg_count})")
+            await create_summary(user_id, user_model_preferences[user_id], output_format)
+            # Clear old conversation but keep current message
+            current_message = user_conversations[user_id][-1]
+            user_conversations[user_id].clear()
+            user_conversations[user_id].append(current_message)
+            logger.info(f"Cleared conversation history, kept current message for user {user_id}")
+
+        messages_to_send = filter_conversation_messages(list(user_conversations[user_id]))
+
     try:
         thinking_message = await message.answer("Думаю...")
-        
+
         user_temperature = user_temperature_preferences[user_id]
         user_model = user_model_preferences[user_id]
         user_max_tokens = user_max_tokens_preferences[user_id]
         user_system_prompt_enabled = user_system_prompt_preferences[user_id]
-        api_response = await openrouter_client.send_message(messages_to_send, output_format, user_model, user_temperature, user_max_tokens, user_system_prompt_enabled)
+        user_summary = user_summaries.get(user_id, None)
+        api_response = await openrouter_client.send_message(messages_to_send, output_format, user_model, user_temperature, user_max_tokens, user_system_prompt_enabled, user_summary)
         
         await bot.delete_message(chat_id=message.chat.id, message_id=thinking_message.message_id)
         
@@ -250,10 +338,11 @@ async def handle_message(message: Message) -> None:
                 if "Итоговый рецепт:" in response_content:
                     response_with_tokens = f"{response_content}\n\n{token_info}"
                     await message.answer(response_with_tokens, reply_markup=get_reply_keyboard())
-                    # Clear recipe context after final recipe
+                    # Clear recipe context and summary after final recipe
                     user_recipe_conversations[user_id].clear()
                     user_recipe_info[user_id].clear()
-                    logger.info(f"Sent final recipe to user {user_id} and cleared context")
+                    user_summaries.pop(user_id, None)
+                    logger.info(f"Sent final recipe to user {user_id} and cleared context and summary")
                 else:
                     response_with_tokens = f"{response_content}\n\n{token_info}"
                     await message.answer(response_with_tokens, reply_markup=get_reply_keyboard())
@@ -261,14 +350,14 @@ async def handle_message(message: Message) -> None:
             else:
                 # Preserve existing text/json functionality
                 user_conversations[user_id].append({"role": "assistant", "content": response_content})
-                
+
                 if output_format == "json":
                     formatted_response = f"```json\n{response_content}\n```\n\n{token_info}"
                     await message.answer(formatted_response, parse_mode="Markdown", reply_markup=get_reply_keyboard())
                 else:
                     response_with_tokens = f"{response_content}\n\n{token_info}"
                     await message.answer(response_with_tokens, reply_markup=get_reply_keyboard())
-                
+
                 logger.info(f"Sent {output_format} response to user {user_id}")
         else:
             await message.answer("SYSTEM: Not available now, please, try again later", reply_markup=get_reply_keyboard())

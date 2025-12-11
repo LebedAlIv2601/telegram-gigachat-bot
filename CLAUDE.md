@@ -9,6 +9,7 @@ This is a Telegram bot that integrates with OpenRouter API to provide intelligen
 - Management scripts for Mac 24/7 operation (start_bot.sh, stop_bot.sh, check_bot.sh)
 
 ## New Features (Latest)
+- **Conversation Summarization**: Automatic context compression after 10 user messages for efficient long conversations
 - **Model Selection**: Switch between DeepSeek R1T2, Nova 2 Lite, and Google Gemma models via "🔄 Change Model" button
 - **Token Usage Tracking**: All responses include token usage info (prompt/response/total tokens)
 - **Per-user Model Preferences**: Selected model persists per user until bot restart
@@ -16,23 +17,24 @@ This is a Telegram bot that integrates with OpenRouter API to provide intelligen
 - **Persistent Bottom Menu**: "📝 Text Mode", "🔧 JSON Mode", "👨‍🍳 Recipe Master", and "🔄 Change Model" buttons
 - **Recipe Master**: Cooking expert that creates step-by-step recipes in Russian
 - **JSON Structure**: Contains `answer`, `recommendations`, `author` fields
-- **Per-user Preferences**: Output format and model selection stored in memory per user
+- **Per-user Preferences**: Output format, model selection, and summaries stored in memory per user
 - **Formatted JSON**: Multi-line with proper indentation and minimal escaping
 - **Temperature Control**: Per-user temperature setting (0-2.0) via `/temperature` command
 - **Max Tokens Control**: Per-user maximum response tokens (100-4000) via `/maxTokens` command
 - **System Prompt Toggle**: Enable/disable system prompts via `/systemPrompt on|off` command
-- **Conversation Management**: `/clear` command to reset conversation history; model changes also clear history
+- **Conversation Management**: `/clear` command to reset conversation history and summary; model changes also clear history
 - **System Message Filtering**: SYSTEM messages excluded from AI context
 
 ## Development Context
 - Python project using aiogram for Telegram integration
 - Async/await pattern throughout
 - Environment variables for sensitive tokens
-- Conversation history per user (max 10 messages for text/json, 50 for recipes)
+- Conversation history per user (unlimited with automatic summarization after 10 user messages)
 - Triple system prompts for text/json/recipe modes
-- In-memory user preference storage (output format, model selection, temperature, max tokens, system prompt toggle)
+- In-memory user preference storage (output format, model selection, temperature, max tokens, system prompt toggle, conversation summaries)
 - Available AI Models: DeepSeek R1T2 (tngtech/deepseek-r1t2-chimera:free), Nova 2 Lite (amazon/nova-2-lite-v1:free), Google Gemma (google/gemma-3n-e4b-it:free)
 - Default model: DeepSeek R1T2
+- Automatic context optimization: summaries embedded in system prompts (compatible with all models including Amazon Nova)
 
 ## Output Modes
 ### Text Mode
@@ -64,7 +66,7 @@ This is a Telegram bot that integrates with OpenRouter API to provide intelligen
 - `/temperature VALUE` - Set AI temperature (0-2.0, default: 0)
 - `/maxTokens VALUE` - Set maximum response tokens (100-4000, default: 4000)
 - `/systemPrompt on|off` - Enable/disable system prompts (default: on)
-- `/clear` - Clear conversation history for current user
+- `/clear` - Clear conversation history and summary for current user
 
 ## Management Commands
 ```bash
@@ -102,6 +104,22 @@ python telegram_bot.py
 - Recipe mode maintains separate conversation history
 - All bot system messages prefixed with "SYSTEM:" and filtered from AI model context
 - Temperature, maxTokens, systemPrompt and system messages excluded from conversation history
-- Per-user preferences (model, temperature, max tokens, system prompt toggle, output format) persist until bot restart
+- Per-user preferences (model, temperature, max tokens, system prompt toggle, output format, summaries) persist until bot restart
 - All responses include token usage information in format: (Prompt: X, Response: Y, Total: Z tokens)
-- Model changes clear conversation history automatically
+- Model changes clear conversation history and summary automatically
+
+## Conversation Summarization Feature
+- **Trigger**: Automatically activates when user sends 10th message
+- **Flow**:
+  1. User sends message #10 → added to conversation
+  2. Bot creates summary from messages 1-10 using selected AI model
+  3. Conversation history cleared, current message #10 preserved
+  4. Bot responds to message #10 using summary (embedded in system prompt) + message #10
+  5. Subsequent messages accumulate normally
+  6. After 10 more user messages: re-summarization (old summary + new 10 messages → new comprehensive summary)
+- **Summary Format**: One paragraph, maximum 5 sentences, English language
+- **Summary Storage**: Per-user in `user_summaries` dictionary (in-memory)
+- **Summary Injection**: Appended to system prompt via `conversation_summary` parameter in OpenRouter client
+- **Model Compatibility**: Summary embedded in system prompt (not assistant prefill) - compatible with Amazon Nova and all other models
+- **Summary Clearing**: `/clear` command, model changes, and final recipe completion all clear summaries
+- **Transparent Operation**: No user notification when summarization occurs
