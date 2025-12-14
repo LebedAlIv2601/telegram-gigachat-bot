@@ -8,6 +8,7 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.filters import CommandStart, Command
 from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from openrouter_client import OpenRouterClient
+from summary_storage import SummaryStorage
 
 load_dotenv()
 
@@ -23,6 +24,7 @@ if not TELEGRAM_TOKEN or not OPENROUTER_API_KEY:
 bot = Bot(token=TELEGRAM_TOKEN)
 dp = Dispatcher()
 openrouter_client = OpenRouterClient(OPENROUTER_API_KEY)
+summary_storage = SummaryStorage()
 
 user_conversations: Dict[int, Deque] = defaultdict(lambda: deque())
 user_output_preferences: Dict[int, str] = defaultdict(lambda: "text")
@@ -32,7 +34,7 @@ user_temperature_preferences: Dict[int, float] = defaultdict(lambda: 0.0)
 user_model_preferences: Dict[int, str] = defaultdict(lambda: "deepseek")
 user_max_tokens_preferences: Dict[int, int] = defaultdict(lambda: 4000)
 user_system_prompt_preferences: Dict[int, bool] = defaultdict(lambda: True)
-user_summaries: Dict[int, str] = {}
+user_summaries: Dict[int, str] = summary_storage.load_summaries()
 
 
 def filter_conversation_messages(messages: List[Dict[str, str]]) -> List[Dict[str, str]]:
@@ -61,9 +63,9 @@ async def create_summary(user_id: int, model_name: str, output_format: str) -> s
     # Build summarization prompt
     # If there's an existing summary, include it in the system prompt for re-summarization
     if user_id in user_summaries and user_summaries[user_id]:
-        system_content = f"Summarize the following conversation in one paragraph (maximum 5 sentences) in English. Capture the key topics, questions, and important context.\n\nPrevious summary: {user_summaries[user_id]}\n\nNow create a new comprehensive summary that incorporates both the previous summary and the new conversation below."
+        system_content = f"Summarize the following conversation in one paragraph (maximum 5 sentences, approximately 1000 characters) in English. Capture the key topics, questions, and important context.\n\nPrevious summary: {user_summaries[user_id]}\n\nNow create a new comprehensive summary that incorporates both the previous summary and the new conversation below."
     else:
-        system_content = "Summarize the following conversation in one paragraph (maximum 5 sentences) in English. Capture the key topics, questions, and important context."
+        system_content = "Summarize the following conversation in one paragraph (maximum 5 sentences, approximately 1000 characters) in English. Capture the key topics, questions, and important context."
 
     summarization_system_prompt = {
         "role": "system",
@@ -90,6 +92,7 @@ async def create_summary(user_id: int, model_name: str, output_format: str) -> s
         if api_response and api_response.get('content'):
             summary = api_response['content']
             user_summaries[user_id] = summary
+            summary_storage.save_summary(user_id, summary)
             logger.info(f"Created summary for user {user_id}: {summary[:100]}...")
             return summary
         else:
@@ -201,6 +204,7 @@ async def clear_command_handler(message: Message) -> None:
     user_recipe_conversations[user_id].clear()
     user_recipe_info[user_id].clear()
     user_summaries.pop(user_id, None)
+    summary_storage.delete_summary(user_id)
     await message.answer("SYSTEM: Conversation history cleared", reply_markup=get_reply_keyboard())
     logger.info(f"User {user_id} cleared conversation history and summary")
 
@@ -225,6 +229,7 @@ async def handle_model_selection(callback_query: CallbackQuery) -> None:
     user_recipe_conversations[user_id].clear()
     user_recipe_info[user_id].clear()
     user_summaries.pop(user_id, None)
+    summary_storage.delete_summary(user_id)
 
     # Get model display name
     model_display_name = openrouter_client.get_model_display_name(model_key)
@@ -287,7 +292,7 @@ async def handle_message(message: Message) -> None:
 
         # Check if summarization needed BEFORE sending to API
         user_msg_count = count_user_messages(user_id, output_format)
-        if user_msg_count >= 10:
+        if user_msg_count >= 5:
             logger.info(f"Pre-summarization triggered for user {user_id} in recipe mode (count: {user_msg_count})")
             await create_summary(user_id, user_model_preferences[user_id], output_format)
             # Clear old conversation but keep current message
@@ -304,7 +309,7 @@ async def handle_message(message: Message) -> None:
 
         # Check if summarization needed BEFORE sending to API
         user_msg_count = count_user_messages(user_id, output_format)
-        if user_msg_count >= 10:
+        if user_msg_count >= 5:
             logger.info(f"Pre-summarization triggered for user {user_id} in {output_format} mode (count: {user_msg_count})")
             await create_summary(user_id, user_model_preferences[user_id], output_format)
             # Clear old conversation but keep current message
@@ -342,6 +347,7 @@ async def handle_message(message: Message) -> None:
                     user_recipe_conversations[user_id].clear()
                     user_recipe_info[user_id].clear()
                     user_summaries.pop(user_id, None)
+                    summary_storage.delete_summary(user_id)
                     logger.info(f"Sent final recipe to user {user_id} and cleared context and summary")
                 else:
                     response_with_tokens = f"{response_content}\n\n{token_info}"

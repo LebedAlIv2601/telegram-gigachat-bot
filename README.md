@@ -6,8 +6,8 @@ A powerful Telegram bot that integrates with OpenRouter API to provide intellige
 
 - 🤖 **Multi-Model AI**: Choose between DeepSeek R1T2, Nova 2 Lite, and Google Gemma models
 - 🔄 **Model Switching**: Easy model selection via inline buttons with conversation history clearing
-- 💬 **Conversation Context**: Unlimited conversation history with automatic summarization after 10 messages
-- 🧠 **Smart Summarization**: Automatic context compression for efficient long conversations
+- 💬 **Conversation Context**: Unlimited conversation history with automatic summarization after 5 messages
+- 🧠 **Smart Summarization**: Automatic context compression with persistent storage (~1000 chars)
 - 📊 **Token Usage Tracking**: Displays prompt, response, and total token counts for each interaction
 - 🤔 Shows "Думаю..." message while processing queries
 - 🛡️ **Error Handling**: Graceful degradation and comprehensive logging
@@ -106,8 +106,8 @@ tail -f bot.log
 ## Configuration
 
 - **System prompts**: Separate prompts for text, JSON, and recipe modes in `openrouter_client.py`
-- **Message history**: Unlimited with automatic summarization after 10 user messages
-- **Conversation summarization**: Transparent context compression for efficient long conversations
+- **Message history**: Unlimited with automatic summarization after 5 user messages
+- **Conversation summarization**: Persistent storage with transparent context compression (~1000 chars)
 - **Output modes**: Users can switch between Text, JSON, and Recipe Master formats using bottom menu buttons
 - **Model selection**: Switch between three AI models with automatic conversation clearing
 - **Token usage**: All responses show detailed token consumption information
@@ -170,9 +170,11 @@ tail -f bot.log
 telegram-openrouter-bot/
 ├── telegram_bot.py          # Main bot implementation with multi-model support
 ├── openrouter_client.py     # OpenRouter API client with token tracking
+├── summary_storage.py       # Persistent JSON storage for conversation summaries
 ├── requirements.txt         # Dependencies
 ├── .env.example            # Environment template
 ├── .gitignore              # Git ignore rules
+├── user_summaries.json     # Persistent summary storage (auto-generated, gitignored)
 ├── setup_mac.sh            # Mac 24/7 setup
 ├── start_bot.sh            # Start bot in background
 ├── stop_bot.sh             # Stop bot
@@ -195,19 +197,21 @@ telegram-openrouter-bot/
 - Control response length with `/maxTokens` to manage costs
 - Free tier models available through OpenRouter
 - Monitor usage through detailed logging
-- Automatic summarization after 10 messages optimizes context usage and reduces token costs
+- Automatic summarization after 5 messages optimizes context usage and reduces token costs
+- Persistent summaries preserve context across bot restarts
 
 ## Conversation Summarization
 
 The bot automatically optimizes long conversations for better performance and lower token usage:
 
-- **Automatic Trigger**: When you send your 10th message, the bot automatically summarizes the conversation
+- **Automatic Trigger**: When you send your 5th message, the bot automatically summarizes the conversation
+- **Persistent Storage**: Summaries saved to JSON file and survive bot restarts
 - **Transparent Process**: No interruption to your chat - the summarization happens seamlessly
 - **Smart Context**: Your next response uses the summary (embedded in system prompt) plus your current message
-- **Continuous Learning**: After another 10 messages, the bot creates a new comprehensive summary
+- **Continuous Learning**: After another 5 messages, the bot creates a new comprehensive summary incorporating previous summary
 - **Model Compatible**: Works with all AI models including Amazon Nova (summary embedded in system prompt, not as assistant prefill)
-- **Summary Format**: Concise one-paragraph summary (max 5 sentences) in English
-- **Clear Command**: Use `/clear` to reset both conversation history and summary
+- **Summary Format**: Concise one-paragraph summary (max 5 sentences, ~1000 characters) in English
+- **Clear Command**: Use `/clear` to reset both conversation history and summary (deletes from persistent storage)
 
 ## Contributing
 
